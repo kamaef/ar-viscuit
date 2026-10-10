@@ -15,22 +15,68 @@
       position: fixed; inset: 0; margin: auto; width: 200px; height: 60px;
       font-size: 20px;
     }
+    #menu {
+      position: fixed; left: 0; right: 0; bottom: 24px;
+      display: none; justify-content: center; flex-wrap: wrap;
+      gap: 10px; padding: 0 12px;
+    }
+    #menu button {
+      width: 52px; height: 52px; font-size: 20px; border: none;
+      border-radius: 50%; background: rgba(255,255,255,0.85);
+    }
+    #menu button.active { background: #ffd54a; font-weight: bold; }
   </style>
 </head>
 <body>
   <video id="cam" autoplay playsinline muted></video>
-  <video id="art" src="sakuhin.mp4" loop muted playsinline></video>
+  <video id="art" loop muted playsinline></video>
   <button id="start">カメラをはじめる</button>
+  <div id="menu"></div>
 
   <script>
+    const art = document.getElementById('art');
+    const menu = document.getElementById('menu');
+    let count = 0;
+
+    // sakuhin1.mp4, sakuhin2.mp4 ... を順番に探す
+    async function findWorks() {
+      for (let i = 1; i <= 30; i++) {
+        try {
+          const r = await fetch('sakuhin' + i + '.mp4', { method: 'HEAD', cache: 'no-store' });
+          if (!r.ok) break;
+        } catch (e) { break; }
+        count = i;
+      }
+    }
+
+    function show(n) {
+      art.src = 'sakuhin' + n + '.mp4';
+      art.play();
+      [...menu.children].forEach((b, i) => b.classList.toggle('active', i === n - 1));
+    }
+
+    const ready = findWorks().then(() => {
+      for (let n = 1; n <= count; n++) {
+        const b = document.createElement('button');
+        b.textContent = n;
+        b.addEventListener('click', () => show(n));
+        menu.appendChild(b);
+      }
+    });
+
     document.getElementById('start').addEventListener('click', async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }, // 背面カメラ
+        video: { facingMode: { ideal: 'environment' } },
         audio: false
       });
       document.getElementById('cam').srcObject = stream;
-      document.getElementById('art').play();
       document.getElementById('start').remove();
+      await ready;
+      if (count === 0) return;
+      menu.style.display = 'flex';
+      // URLの最後に ?v=3 を付けると、最初から3番の作品で開く
+      const v = parseInt(new URLSearchParams(location.search).get('v'), 10);
+      show((v >= 1 && v <= count) ? v : 1);
     });
   </script>
 </body>
